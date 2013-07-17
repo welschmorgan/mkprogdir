@@ -1,4 +1,4 @@
-TARGET_NAME = prog
+TARGET_NAME = packer
 TARGET_EXT = exe
 
 BIN_DIR = ./bin
@@ -7,12 +7,24 @@ SRC_DIR = ./src
 INC_DIR = ./inc
 TARGET_PATH = $(BIN_DIR)/$(TARGET_NAME).$(TARGET_EXT)
 
-prog : main.o
-	gcc $(OBJ_DIR)/main.o -o $(TARGET_PATH)
+CFLAGS = -Wall -Wextra -Werror
+CP = gcc
+
+all : fclean packer
+
+packer : main.o
+	$(CP) $(OBJ_DIR)/main.o -o $(TARGET_PATH)
 
 main.o :
-	gcc -c $(SRC_DIR)/main.c -I$(INC_DIR) -o $(OBJ_DIR)/main.o
+	$(CP) $(CFLAGS) -c $(SRC_DIR)/main.c -I$(INC_DIR) -o $(OBJ_DIR)/main.o
 
 clean :
-	rm -rf $(BIN_DIR)/*.exe
-	rm -rf $(OBJ_DIR)/*.obj
+	rm $(BIN_DIR)/*.exe
+	rm $(OBJ_DIR)/*.o
+fclean :
+	rm -f $(BIN_DIR)/*.exe
+	rm -f $(OBJ_DIR)/*.o
+
+
+
+
