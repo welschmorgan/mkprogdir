@@ -25,6 +25,6 @@ fclean :
 	rm -f $(BIN_DIR)/*.exe
 	rm -f $(OBJ_DIR)/*.o
 
-
-
-
+run: all
+	echo Running $(TARGET_PATH) ...
+	$(TARGET_PATH) t te
