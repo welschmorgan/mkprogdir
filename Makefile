@@ -21,6 +21,7 @@ main.o :
 clean :
 	rm $(BIN_DIR)/*.exe
 	rm $(OBJ_DIR)/*.o
+
 fclean :
 	rm -f $(BIN_DIR)/*.exe
 	rm -f $(OBJ_DIR)/*.o
