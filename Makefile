@@ -10,13 +10,23 @@ TARGET_PATH = $(BIN_DIR)/$(TARGET_NAME).$(TARGET_EXT)
 CFLAGS = -Wall -Wextra -Werror
 CP = gcc
 
-all : fclean packer
+all : fclean $(TARGET_NAME)
 
-packer : main.o
-	$(CP) $(OBJ_DIR)/main.o -o $(TARGET_PATH)
+$(TARGET_NAME) : main.o version.o commands.o
+	$(CP) \
+	$(OBJ_DIR)/main.o \
+	$(OBJ_DIR)/version.o \
+	$(OBJ_DIR)/commands.o \
+	-o $(TARGET_PATH)
 
 main.o :
 	$(CP) $(CFLAGS) -c $(SRC_DIR)/main.c -I$(INC_DIR) -o $(OBJ_DIR)/main.o
+
+version.o :
+	$(CP) $(CFLAGS) -c $(SRC_DIR)/version.c -I$(INC_DIR) -o $(OBJ_DIR)/version.o
+
+commands.o :
+	$(CP) $(CFLAGS) -c $(SRC_DIR)/commands.c -I$(INC_DIR) -o $(OBJ_DIR)/commands.o
 
 clean :
 	rm $(BIN_DIR)/*.exe
@@ -28,4 +38,15 @@ fclean :
 
 run: all
 	echo Running $(TARGET_PATH) ...
-	$(TARGET_PATH) t te
+	$(TARGET_PATH) -c test
+
+run_vers: all
+	echo Running $(TARGET_PATH) for version infos...
+	$(TARGET_PATH) -v
+
+run_summary: all
+	$(TARGET_PATH) -s
+
+run_noargs: all
+	echo Running $(TARGET_PATH) without arguments !
+	$(TARGET_PATH)
