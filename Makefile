@@ -1,4 +1,4 @@
-TARGET_NAME = packer
+TARGET_NAME = mkprogdir
 TARGET_EXT = exe
 
 BIN_DIR = ./bin

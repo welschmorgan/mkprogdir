@@ -18,16 +18,21 @@ int main( int argc, char ** argv )
     if( g_verbose )
       printf("Running in interactive mode\n");
   }
+  if( has_force_mode( argc, argv ) ){
+    g_force = true;
+    if( g_verbose )
+      printf("Recreation of files and directories will be FORCED\n");
+  }
   extract_working_dir( argc, argv );
   ret_c = check_mode( argc, argv );
-  if( ret_c == e_cmd_create )
-    return create_mode( argc, argv );
-  else if( ret_c == e_cmd_summary )
-    return summary_mode( argc, argv );
-  else if( ret_c == e_cmd_help )
+  if( ret_c == e_cmd_help )
     return help_mode();
   else if( ret_c == e_cmd_version )
     return version_mode();
+  else if( ret_c == e_cmd_create )
+    return create_mode( argc, argv );
+  else if( ret_c == e_cmd_summary )
+    return summary_mode( argc, argv );
 
   return (print_error_value( ret_c ));
 }

@@ -3,8 +3,12 @@
 
 #include <dirent.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <ctype.h>
 
+bool g_force = false;
 bool g_interactive = false;
 bool g_verbose = false;
 char g_working_dir[260];
@@ -24,8 +28,11 @@ void extract_working_dir( int argc, char ** argv )
       printf("No directory supplied, using current working directory\n");
     strncpy( g_working_dir, "./", 260 );
   }
-  if( g_working_dir[strlen(g_working_dir-1)] != '/' || g_working_dir[strlen(g_working_dir-1)] != '\\' )
+
+  if( g_working_dir[strlen(g_working_dir)-1] != '/' &&
+     g_working_dir[strlen(g_working_dir)-1] != '\\' )
     snprintf( g_working_dir, 260, "%s%c", g_working_dir, '/' );
+
   if( g_verbose )
     printf("Directory: %s\n", g_working_dir);
 }
@@ -47,7 +54,8 @@ int version_mode( void )
 
 int help_mode( void )
 {
-  return 0;
+  print_usage(0, NULL);
+  return e_err_none;
 }
 
 bool dir_exists( const char * path )
@@ -121,43 +129,251 @@ int summary_mode(void)
   return e_err_none;
 }
 
-int create_mode_interactive(void)
+char * read_input_default( char * buf, unsigned int max_len, const char * default_str )
 {
-  char input_buf[1024];
-  bool stop;
-  stop = false;
+  if( !buf || max_len == 0 || !default_str ) return NULL;
+  fflush(stdout);
 
-  while( !stop ){
-    printf("Add File: ");
-    scanf( "%s", input_buf );
-    fflush(stdout);
-    if( !strcmp( input_buf, "q" ) ){
-      stop = true;
-    }
-    else{
-      printf("\tadded %s\n", input_buf);
+  if (fgets(buf, max_len, stdin) != NULL){
+    /**
+     * Find the newline and, if present, zero it out
+     */
+    char *newline = strchr(buf, '\n');
+    if (newline)
+      *newline = 0;
+    // input was empty
+    if (strlen(buf) == 0){
+      strncpy(buf, default_str, max_len);
     }
   }
+  return buf;
+}
 
+int my_mkdir( const char *path )
+{
+  unsigned short sz;
+  char *p;
+  if( !path ) return -1;
+  sz = sizeof(char) * (strlen(path) + 20);
+  p=(char*)malloc( sz );
+  if( !p ) return -2;
+  snprintf( p, 260, "mkdir -m 777 -p \"%s\"", path );
+  int ret = system(p);
+  free( p );
+  return ret;
+}
+
+int create_mode_interactive(void)
+{
+  int errc;
+  unsigned short errcnt;
+  char src[260];
+  char inc[260];
+  char bin[260];
+  char obj[260];
+  char buf[512];
+  char default_src[] = "src";
+  char default_inc[] = "inc";
+  char default_bin[] = "bin";
+  char default_obj[] = "obj";
+
+  printf("\tSource directory (default \"%s\"): ", default_src);
+  read_input_default( src, 260, default_src );
+
+  printf("\tInclude directory (default \"%s\"): ", default_inc);
+  read_input_default( inc, 260, default_inc );
+
+  printf("\tBinary directory (default \"%s\"): ", default_bin);
+  read_input_default( bin, 260, default_bin );
+
+  printf("\tObject directory (default \"%s\"): ", default_obj);
+  read_input_default( obj, 260, default_obj );  
+  
+  errcnt = 0;
+  snprintf(buf, 512, "%s%s", g_working_dir, src );
+  errc = my_mkdir( buf );
+  if( g_verbose ) printf("Making directory %s: %s(%i)\n", buf, (errc==0)?"success":"error", errc );
+  if( errc != 0 ) errcnt++;
+  
+  snprintf(buf, 512, "%s%s", g_working_dir, inc );
+  errc = my_mkdir( buf );
+  if( g_verbose ) printf("Making directory %s: %s(%i)\n", buf, (errc==0)?"success":"error", errc );
+  if( errc != 0 ) errcnt++;
+
+  snprintf(buf, 512, "%s%s", g_working_dir, obj );
+  errc = my_mkdir( buf );
+  if( g_verbose ) printf("Making directory %s: %s(%i)\n", buf, (errc==0)?"success":"error", errc );
+  if( errc != 0 ) errcnt++;
+  
+  snprintf(buf, 512, "%s%s", g_working_dir, bin );
+  errc = my_mkdir( buf );
+  if( g_verbose ) printf("Making directory %s: %s(%i)\n", buf, (errc==0)?"success":"error", errc );
+  if( errc != 0 ) errcnt++;
+
+  if( g_verbose )
+    printf("Done, %i error(s)", errcnt);
+  if( errcnt != 0 )
+    return errc;
   return e_err_none;
 }
 
 int create_mode_automatic( int argc, char **argv )
-{
-  print_arguments( argc, argv );
+{  
+  int errc;
+  unsigned short errcnt;
+  char src[260];
+  char inc[260];
+  char bin[260];
+  char obj[260];
+  char buf[512];
+  char default_src[] = "src";
+  char default_inc[] = "inc";
+  char default_bin[] = "bin";
+  char default_obj[] = "obj";
+  strncpy( src, default_src, 260 );
+  strncpy( inc, default_inc, 260 );
+  strncpy( bin, default_bin, 260 );
+  strncpy( obj, default_obj, 260 );
+
+  if( has_mode("-S", argc, argv ) || has_mode("--Source", argc, argv )  ){
+    if( has_mode("-S", argc, argv ) )
+      get_mode_args( "-S", src, 260, argc, argv );
+    else
+      get_mode_args( "--Source", src, 260, argc, argv );
+  }
+
+  if( has_mode("-I", argc, argv ) || has_mode("--Include", argc, argv )  ){
+    if( has_mode("-I", argc, argv ) )
+      get_mode_args( "-I", inc, 260, argc, argv );
+    else
+      get_mode_args( "--Include", inc, 260, argc, argv );
+  }
+
+  if( has_mode("-B", argc, argv ) || has_mode("--Binary", argc, argv )  ){
+    if( has_mode("-B", argc, argv ) )
+      get_mode_args( "-B", bin, 260, argc, argv );
+    else
+      get_mode_args( "--Binary", bin, 260, argc, argv );
+  }
+
+  if( has_mode("-O", argc, argv ) || has_mode("--Object", argc, argv ) ){
+    if( has_mode("-O", argc, argv ) )
+      get_mode_args( "-O", obj, 260, argc, argv );
+    else
+      get_mode_args( "--Object", obj, 260, argc, argv );
+  }
+  if( g_verbose ){
+    printf("\tSource directory: %s\n", src);
+    printf("\tInclude directory: %s\n", inc);
+    printf("\tBinary directory: %s\n", bin);
+    printf("\tObject directory: %s\n", obj);
+  }
+  errcnt = 0;
+  snprintf(buf, 512, "%s%s", g_working_dir, src );
+  errc = my_mkdir( buf );
+  if( g_verbose ) printf("Making directory %s: %s(%i)\n", buf, (errc==0)?"success":"error", errc );
+  if( errc != 0 ) errcnt++;
+  
+  snprintf(buf, 512, "%s%s", g_working_dir, inc );
+  errc = my_mkdir( buf );
+  if( g_verbose ) printf("Making directory %s: %s(%i)\n", buf, (errc==0)?"success":"error", errc );
+  if( errc != 0 ) errcnt++;
+
+  snprintf(buf, 512, "%s%s", g_working_dir, obj );
+  errc = my_mkdir( buf );
+  if( g_verbose ) printf("Making directory %s: %s(%i)\n", buf, (errc==0)?"success":"error", errc );
+  if( errc != 0 ) errcnt++;
+  
+  snprintf(buf, 512, "%s%s", g_working_dir, bin );
+  errc = my_mkdir( buf );
+  if( g_verbose ) printf("Making directory %s: %s(%i)\n", buf, (errc==0)?"success":"error", errc );
+  if( errc != 0 ) errcnt++;
+
+  if( g_verbose )
+    printf("Done, %i error(s)", errcnt);
+  if( errcnt != 0 )
+    return errc;
   return e_err_none;
 }
+int create_file( const char * fname, const char * content )
+{
+  char buf[512];
+  char path[512];
+  FILE *fd;
 
+  if( !fname )
+    return e_err_invalid_arg;
+  snprintf(path, 512, "%s%s", g_working_dir, fname );
+  if( file_exists( path ) ){
+    if( g_force ){
+      if( g_verbose )
+	printf("File %s already exists, removing it !\n", path);
+      remove( path );
+    }
+    else{
+      if( g_verbose )
+	printf("File %s already exists, use forced mode to overwrite it !\n", path);
+      else
+	printf("Skipping %s\n", path);
+      return e_err_missing_arg;
+    }
+  }
+  fd = fopen( path, "w" );
+  if( !fd ){
+    if( g_verbose )
+      printf("Error: Cannot open file %s for writing\n", path);
+    return e_err_invalid_arg;
+  }
+  if( content && strlen(content)>0 ){
+    if( g_verbose )
+      printf("Written %u bytes to %s\n", strlen(content), path);
+    fwrite( content, sizeof(char), strlen( content ), fd );
+  }
+  else if( g_verbose )
+    printf("Written empty file %s\n", path);
+  fclose( fd );
+  snprintf( buf, 512, "chmod 777 \"%s\"", path);
+  system(buf);
+  return e_err_none;
+}
+int create_file_safe( const char * fname, const char * content, int argc, char **argv ){
+  char buf[260];
+  unsigned int i;
+  snprintf(buf, 260, fname, "--no-%s", fname);
+
+  for( i=0; i<strlen(buf); i++ )
+    i = tolower( (int)buf[i] );
+
+  if( !is_file_disabled(fname, argc, argv) )
+    create_file( fname, content );
+  else if( g_verbose ) 
+    printf("Skipping %s as %s was specified\n", fname, buf);
+  return e_err_none;
+}
+int create_files( int argc, char **argv )
+{
+  printf("Creating files ...\n");
+  create_file_safe( "makefile", NULL, argc, argv );
+  create_file_safe( ".gitignore", "*.o\n", argc, argv );
+  create_file_safe( "LICENSE", "No one shall copy my code because it is bad !", argc, argv );
+  create_file_safe( "README", "Yeah like if you cared !", argc, argv );
+  create_file_safe( "AUTHORS", "DarkBoss", argc, argv );
+  return e_err_none;
+}
 int create_mode( int argc, char **argv )
 {
-  printf("Creating pack ...\n");
-
+  int retc;
+  printf("Creating programming directory ...\n");
   if( g_interactive )
-    return create_mode_interactive();
+    retc = create_mode_interactive();
   else
-    return create_mode_automatic( argc, argv );
-
-  return e_err_none;
+    retc = create_mode_automatic( argc, argv );
+  if( retc != e_err_none ){
+    if( g_verbose )
+      printf("Skipping files creation as previous errors occured\n");
+    return retc;
+  }
+  return create_files( argc, argv );
 }
 
 
@@ -171,7 +387,14 @@ int print_usage( int argc, char ** argv )
   printf("\t-V(--Verbose): enables verbose mode\n");
   printf("\t-i(--interactive): enables interactive mode\n");
   printf("\t-d(--dir): specify the directory to work on\n");
-  print_arguments( argc, argv );
+  printf("\t-f(--force): forces the creation of dirs and files ( overwrites )\n\n");
+  printf("\t--no-makefile: ignores the makefile\n");
+  printf("\t--no-.gitignore: ignores the .gitignore file\n");
+  printf("\t--no-readme: ignores the README file\n");
+  printf("\t--no-license: ignores the LICENSE file\n");
+  printf("\t--no-authors: ignores the AUTHORS file\n");
+  if( argc > 1 )
+    print_arguments( argc, argv );
   return e_err_no_args;
 }
 
@@ -181,6 +404,14 @@ void print_arguments( int argc, char **argv )
   printf("Supplied arguments: %i\n", argc );
   for( i=1; i<argc; i++ )
     printf("Arg[%i]: %s\n", i, argv[i]);
+}
+
+
+bool is_file_disabled( const char * name, int argc, char **argv )
+{
+  char buf[255];
+  snprintf( buf, 255, "--no-%s", name );
+  return has_mode( buf, argc, argv );
 }
 
 bool has_mode( const char * lookup, int argc, char **argv )
@@ -197,6 +428,12 @@ bool has_interactive_mode( int argc, char **argv ){
   return 
     has_mode( "-i", argc, argv ) || 
     has_mode( "--interactive", argc, argv );
+}
+
+bool has_force_mode( int argc, char **argv ){
+  return
+    has_mode( "-f", argc, argv ) ||
+    has_mode( "--force", argc, argv );
 }
 
 bool has_verbose_mode( int argc, char **argv ){
@@ -239,7 +476,7 @@ int print_error_value( int code )
   else if( code == e_err_invalid_arg )
     printf("Error(%i): Invalid argument\n", code);
   else if( code == e_err_missing_arg )
-    printf("Error(%i): Missing argument\n", code);
+    printf("Error(%i): Miissing argument\n", code);
   else
     printf("Error(%i): Unknown error\n", code);
   return code;
