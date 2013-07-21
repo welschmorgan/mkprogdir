@@ -1,0 +1,47 @@
+#ifndef __COMMANDS__H
+#define __COMMANDS__H
+
+#include <stdbool.h>
+/*
+** Sets the minimum number of arguments required
+*/
+#define REQUIRED_MIN_ARGS 2
+
+typedef enum
+{
+  e_cmd_none,
+  e_cmd_help,
+  e_cmd_version,
+  e_cmd_pack,
+  e_cmd_unpack
+} e_command;
+
+typedef enum
+{
+  e_err_none,
+  e_err_no_args       = -1,
+  e_err_invalid_arg   = -2,
+  e_err_missing_arg   = -3
+} e_error;
+
+extern bool g_interactive;
+extern bool g_verbose;
+
+/*
+** Commands
+*/
+int version_mode( void );
+int help_mode( void );
+int extract_mode( int argc, char **argv );
+int create_mode( int argc, char **argv );
+
+bool has_interactive_mode( int argc, char **argv );
+bool has_verbose_mode( int argc, char **argv );
+bool has_mode( const char * lookup, int argc, char **argv );
+int check_mode( int argc, char ** argv );
+
+int print_error_value( int code );
+int print_usage( int argc, char ** argv );
+void print_arguments( int argc, char **argv );
+
+#endif

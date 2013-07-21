@@ -1,0 +1,152 @@
+#include "commands.h"
+#include "version.h"
+
+#include <stdio.h>
+#include <string.h>
+
+bool g_interactive = false;
+bool g_verbose = false;
+
+int version_mode( void )
+{
+  char buffer[255];
+  t_version vers;
+
+  vers = get_current_version();
+  if( g_verbose )
+    printf( "Version: %s\n", 
+	  build_version_string( &vers,
+				buffer,
+				255 ) );
+  else printf("%s\n", build_version_string( &vers, buffer, 255 ));
+  return e_err_none;
+}
+
+int help_mode( void )
+{
+  return 0;
+}
+
+int extract_mode( int argc, char **argv )
+{
+  printf("Extracting pack ...\n");
+  print_arguments(argc, argv);
+  return e_err_none;
+}
+
+int create_mode_interactive()
+{
+  char input_buf[1024];
+  bool stop;
+  stop = false;
+
+  while( !stop ){
+    printf("Add File: ");
+    scanf( "%s", input_buf );
+    fflush(stdout);
+    if( !strcmp( input_buf, "q" ) ){
+      stop = true;
+    }
+    else{
+      printf("\tadded %s\n", input_buf);
+    }
+  }
+
+  return e_err_none;
+}
+
+int create_mode_automatic( int argc, char **argv )
+{
+  print_arguments( argc, argv );
+  return e_err_none;
+}
+
+int create_mode( int argc, char **argv )
+{
+  printf("Creating pack ...\n");
+
+  if( g_interactive )
+    return create_mode_interactive();
+  else
+    return create_mode_automatic( argc, argv );
+
+  return e_err_none;
+}
+
+
+int print_usage( int argc, char ** argv )
+{
+  printf("packer [OPTIONS] <extra_args ...>\n");
+  print_arguments( argc, argv );
+  return e_err_no_args;
+}
+
+void print_arguments( int argc, char **argv )
+{
+  int i;
+  printf("Supplied arguments: %i\n", argc );
+  for( i=1; i<argc; i++ )
+    printf("Arg[%i]: %s\n", i, argv[i]);
+}
+
+bool has_mode( const char * lookup, int argc, char **argv )
+{
+  int i;
+  if( !lookup ) return false;
+  for( i=1; i<argc; i++ )
+    if( !strcmp( argv[i], lookup ) )
+      return true;
+  return false;
+}
+
+bool has_interactive_mode( int argc, char **argv ){
+  return 
+    has_mode( "-i", argc, argv ) || 
+    has_mode( "--interactive", argc, argv );
+}
+
+bool has_verbose_mode( int argc, char **argv ){
+  return 
+    has_mode( "-V", argc, argv ) || 
+    has_mode( "--verbose", argc, argv )|| 
+    has_mode( "--Verbose", argc, argv );
+}
+
+int check_mode( int argc, char ** argv )
+{
+  int i;
+  if( argc < REQUIRED_MIN_ARGS ){
+    return print_usage( argc, argv );
+  }
+  for( i=0; i<argc; i++ )
+  {
+    if( !strcmp( argv[i], "-v" ) ||
+	!strcmp( argv[i], "--version" ) )
+      return e_cmd_version;
+    else if( !strcmp( argv[i], "-h" ) ||
+	     !strcmp( argv[i], "--help" ) )
+      return e_cmd_help;
+    else if( !strcmp( argv[i], "-c" ) ||
+	     !strcmp( argv[i], "--create" ) )
+      return e_cmd_pack;
+    else if( !strcmp( argv[i], "-x" ) || 
+	     !strcmp( argv[i], "--extract" ))
+      return e_cmd_unpack;
+  }
+  return e_err_none;
+}
+
+int print_error_value( int code )
+{
+  if( code == e_err_none )
+    return code;
+  else if( code == e_err_no_args )
+    printf("Error(%i): Not enough arguments\n", code);
+  else if( code == e_err_invalid_arg )
+    printf("Error(%i): Invalid argument\n", code);
+  else if( code == e_err_missing_arg )
+    printf("Error(%i): Missing argument\n", code);
+  else
+    printf("Error(%i): Unknown error\n", code);
+  return code;
+}

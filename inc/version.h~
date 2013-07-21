@@ -1,0 +1,4 @@
+
+#define PACK_INFO_VERS_MAJOR 0
+#define PACK_INFO_VERS_MINOR 1
+#define PACK_INFO_VERS_BRAND alpha
